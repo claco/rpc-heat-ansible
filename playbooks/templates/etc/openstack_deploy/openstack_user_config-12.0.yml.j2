@@ -145,6 +145,7 @@ storage_hosts:
           volume_group: cinder-volumes
           volume_driver: cinder.volume.drivers.lvm.LVMISCSIDriver
           volume_backend_name: LVM_iSCSI
+{% raw %}          iscsi_ip_address: "{{ storage_address }}"{% endraw %}
 {% endfor %}
 {% endif %}
 

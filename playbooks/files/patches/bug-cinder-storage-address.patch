@@ -1,0 +1,82 @@
+From 47bca233f7f0ad066f120ca50b694e63f862ea20 Mon Sep 17 00:00:00 2001
+From: Byron McCollum <byron.mccollum@rackspace.com>
+Date: Mon, 22 Feb 2016 14:05:22 -0600
+Subject: [PATCH] Set the storage address for cinder
+
+Cinder should use the storage network for storage traffic if available.
+
+Change-Id: I24c3274000b3bed08ea251ce45726e1750f4f85f
+Signed-off-by: Kevin Carter <kevin.carter@rackspace.com>
+---
+
+diff --git a/etc/openstack_deploy/openstack_user_config.yml.aio b/etc/openstack_deploy/openstack_user_config.yml.aio
+index b0d5064..3af6712 100644
+--- a/etc/openstack_deploy/openstack_user_config.yml.aio
++++ b/etc/openstack_deploy/openstack_user_config.yml.aio
+@@ -115,6 +115,7 @@
+           volume_group: cinder-volumes
+           volume_driver: cinder.volume.drivers.lvm.LVMVolumeDriver
+           volume_backend_name: LVM_iSCSI
++          iscsi_ip_address: "{{ storage_address }}"
+ 
+ log_hosts:
+   aio1:
+diff --git a/etc/openstack_deploy/openstack_user_config.yml.example b/etc/openstack_deploy/openstack_user_config.yml.example
+index 28635ad..cb649a2 100644
+--- a/etc/openstack_deploy/openstack_user_config.yml.example
++++ b/etc/openstack_deploy/openstack_user_config.yml.example
+@@ -575,6 +575,7 @@
+ #           volume_backend_name: LVM_iSCSI
+ #           volume_driver: cinder.volume.drivers.lvm.LVMVolumeDriver
+ #           volume_group: cinder-volumes
++#           iscsi_ip_address: "{{ storage_address }}"
+ #         limit_container_types: cinder_volume
+ #
+ # Example:
+diff --git a/playbooks/os-cinder-install.yml b/playbooks/os-cinder-install.yml
+index 22450de..622b4b9 100644
+--- a/playbooks/os-cinder-install.yml
++++ b/playbooks/os-cinder-install.yml
+@@ -157,7 +157,7 @@
+       cinder_venv_tag: "{{ openstack_release }}"
+       cinder_venv_download_url: "{{ openstack_repo_url }}/venvs/{{ openstack_release }}/{{ ansible_distribution | lower }}/cinder-{{ openstack_release }}.tgz"
+       cinder_galera_address: "{{ internal_lb_vip_address }}"
+-      cinder_storage_address: "{{ container_address }}"
++      cinder_management_address: "{{ ansible_ssh_host }}"
+       cinder_glance_host: "{{ internal_lb_vip_address }}"
+       cinder_glance_service_port: "{{ glance_service_port }}"
+       tags:
+diff --git a/playbooks/roles/os_cinder/defaults/main.yml b/playbooks/roles/os_cinder/defaults/main.yml
+index 42c180b..3d9778e 100644
+--- a/playbooks/roles/os_cinder/defaults/main.yml
++++ b/playbooks/roles/os_cinder/defaults/main.yml
+@@ -40,6 +40,7 @@
+ cinder_default_availability_zone: "{{ cinder_storage_availability_zone }}"
+ 
+ cinder_storage_address: 127.0.0.1
++cinder_management_address: 127.0.0.1
+ 
+ cinder_nova_catalog_info: compute:nova:internalURL
+ cinder_nova_catalog_admin_info: compute:nova:adminURL
+diff --git a/playbooks/roles/os_cinder/templates/cinder.conf.j2 b/playbooks/roles/os_cinder/templates/cinder.conf.j2
+index 9d7c9c9..c175067 100644
+--- a/playbooks/roles/os_cinder/templates/cinder.conf.j2
++++ b/playbooks/roles/os_cinder/templates/cinder.conf.j2
+@@ -7,7 +7,7 @@
+ verbose = {{ verbose }}
+ debug = {{ debug }}
+ fatal_deprecations = {{ cinder_fatal_deprecations }}
+-my_ip = {{ cinder_storage_address }}
++my_ip = {{ cinder_management_address }}
+ 
+ osapi_volume_workers = {{ cinder_osapi_volume_workers | default(api_threads) }}
+ 
+@@ -79,7 +79,7 @@
+ 
+ iscsi_helper = {{ cinder_iscsi_helper }}
+ iscsi_iotype = {{ cinder_iscsi_iotype }}
+-iscsi_ip_address = $my_ip
++iscsi_ip_address = {{ cinder_storage_address }}
+ iscsi_num_targets = {{ cinder_iscsi_num_targets }}
+ iscsi_port = {{ cinder_iscsi_port }}
+ 
